@@ -1,45 +1,40 @@
 ---
 title: "MSDS6301_CaseStudy2"
 author: "Fred Poon"
-date: "12/4/2019"
+date: "12/5/2019"
 output: slidy_presentation
 ---
 
-```{r Libraries, echo=FALSE}
+```{r Libraries, echo=FALSE, results='hide'}
 
 # install packages
 install.packages("readxl")
-install.packages("dplyr")
 install.packages("tidyverse")
 install.packages("psych")
 install.packages("class")
 install.packages("caret")
 install.packages("e1071")
-#install.packages("gmodels")
 
-# load libraries
+# load packages
 library(readxl)         ## this reads excel (xls, xlsx) files
-library(tidyverse)
-library(dplyr)          ## already included in tidyverse
+library(tidyverse)      ## tidyverse  by default
 library(psych)          ## using this package to dummy.code categorical variables.
-library(class)
-library(caret)
-library(e1071)
-#library(gmodels)
+library(class)          ## knn and naiveBayes
+library(caret)          ## confusionMatrix
+library(e1071)          ## confusionMatrix
 
 ```
 
-```{r Data}
+```{r Data, echo=TRUE, results='hide'}
 
 #load employee management data sets
-#employees dataset
+#employees dataset - holds attrition and income values
 data = read.csv('C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/CaseStudy2-data.csv', header = TRUE)
 
-#unknown columns.. not enough background information
+#the following are variables with not enough background information
 #StandardHours EmployeeNumber EmployeeCount Over18
-#will remove these columns from dataset
+#we will remove these columns from dataset
 data <- select(data, -StandardHours, -EmployeeNumber, -EmployeeCount, -Over18)
-
 
 #attrition test set
 attrition = read.csv('C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/CaseStudy2CompSet No Attrition.csv', header = TRUE)
@@ -52,6 +47,8 @@ income = read_xlsx('C:/Users/poonf/OneDrive - Southern Methodist University/6306
 ### Information gathered from Excel column names.
 StandardHours = 80... does this imply bi-weekly payroll?
 EmployeeCount = 1... Not sure what this means..
+EmployeeNumber - what significance does this have?
+Over18 - not necessary since we have age
 
 ```{r Exploratory - Summary Statistics}
 
@@ -132,10 +129,9 @@ EnvironmentSatisfaction, JobInvolvement(?), JobSatisfaction, PerformanceRating, 
 ### Numerical Values
 Age, DistanceFromHome, MonthlyIncome, NumCompaniesWorked, PercentSalaryHike, TotalWorkingYears, TrainingTimeLastYear, YearsAtCompany, YearsInCurrentRole, YearsSinceLastPromotion, YearswithCurrManager
 
-```{r Exploratory on Categories}
+```{r Exploratory 3 continued..}
 
 #knowing what I know above, I want to scatterplot significant relationships with categories using facet_wrap()
-
 
 data %>% ggplot() +
   geom_point(aes(Age, MonthlyIncome, color = Attrition)) +
@@ -145,10 +141,20 @@ data %>% ggplot() +
 #makes sense, large cluster of high income individuals under "No" Attrition. 
 
 data %>% ggplot() +
-  geom_point(aes(Gender, MonthlyIncome, color = Attrition)) +
-  geom_smooth(aes(Gender, MonthlyIncome, linetype = Attrition)) +
+  geom_point(aes(YearsAtCompany, MonthlyIncome, color = Attrition)) +
+  geom_smooth(aes(YearsAtCompany, MonthlyIncome, linetype = Attrition)) +
   facet_wrap(~Attrition) +
-  ggtitle("Gender vs MonthlyIncome by Attrition")
+  ggtitle("YearsAtCompany vs MonthlyIncome by Attrition")
+
+data %>% ggplot() +
+  geom_col(aes(WorkLifeBalance, MonthlyIncome)) +
+  facet_wrap(~MaritalStatus) +
+  ggtitle("WorkLifeBalance vs MonthlyIncome by MaritalStatus")
+
+data %>% ggplot() +
+  geom_col(aes(WorkLifeBalance, MonthlyIncome)) +
+  facet_wrap(~Gender) +
+  ggtitle("WorkLifeBalance vs MonthlyIncome by Gender")
 
 ```
 
@@ -277,6 +283,8 @@ attrition2 <- attrition %>%
   select(Age,DailyRate,DistanceFromHome,Education,EnvironmentSatisfaction,HourlyRate,JobInvolvement,JobLevel,JobSatisfaction,MonthlyIncome,MonthlyRate,NumCompaniesWorked,PercentSalaryHike,PerformanceRating,RelationshipSatisfaction,StockOptionLevel,TotalWorkingYears,TrainingTimesLastYear,WorkLifeBalance,YearsAtCompany,YearsInCurrentRole,YearsSinceLastPromotion,YearsWithCurrManager,`Non-Travel`,Travel_Frequently,Travel_Rarely,`Research & Development`,Sales,HREd,`Life Sciences`,Marketing,Medical,Other,`Technical Degree`,Female,Male,`Healthcare Representative`,HRJr,`Laboratory Technician`,Manager,`Manufacturing Director`,`Research Director`,`Research Scientist`,`Sales Executive`,`Sales Representative`,Divorced,Married,Single,NoOverTime,YesOverTime)
 
 view(attrition2)
+str(attrition2)
+str(attrition)
 
 ##export to 
 attrition_exp <- predict(nBmodel,attrition2)
@@ -290,11 +298,29 @@ write.csv(exp,"C:/Users/poonf/OneDrive - Southern Methodist University/6306 doin
 
 #I'm going to use the same dataset from training for Attrition to predict MonthlyIncome, instead of NaiveBayes or KNN I'm going to use linear regression
 
+BusinessTravel <- as.data.frame(dummy.code(income$BusinessTravel))
+Department <- as.data.frame(dummy.code(income$Department))
+EducationField <- as.data.frame(dummy.code(income$EducationField))
+EducationField <- rename(EducationField, HREd = `Human Resources`)
+Gender <- as.data.frame(dummy.code(income$Gender))
+JobRole <- as.data.frame(dummy.code(income$JobRole))
+JobRole <- rename(JobRole, HRJr = `Human Resources`)
+MaritalStatus <- as.data.frame(dummy.code(income$MaritalStatus))
+OverTime <- as.data.frame(dummy.code(income$OverTime))
+OverTime <- rename(OverTime, NoOverTime = No)
+OverTime <- rename(OverTime, YesOverTime = Yes)
+
+income <- cbind(income, BusinessTravel, Department, EducationField, Gender, JobRole, MaritalStatus, OverTime)
+
+income2 <- income %>% 
+  select(Attrition,Age,DailyRate,DistanceFromHome,Education,EnvironmentSatisfaction,HourlyRate,JobInvolvement,JobLevel,JobSatisfaction,MonthlyRate,NumCompaniesWorked,PercentSalaryHike,PerformanceRating,RelationshipSatisfaction,StockOptionLevel,TotalWorkingYears,TrainingTimesLastYear,WorkLifeBalance,YearsAtCompany,YearsInCurrentRole,YearsSinceLastPromotion,YearsWithCurrManager,`Non-Travel`,Travel_Frequently,Travel_Rarely,`Research & Development`,Sales,HREd,`Life Sciences`,Marketing,Medical,Other,`Technical Degree`,Female,Male,`Healthcare Representative`,HRJr,`Laboratory Technician`,Manager,`Manufacturing Director`,`Research Director`,`Research Scientist`,`Sales Executive`,`Sales Representative`,Divorced,Married,Single,NoOverTime,YesOverTime)
+
 lmodel <- lm(MonthlyIncome ~ ., data3)
-income_exp <- predict(lmodel,income)
+
+income_exp <- predict(lmodel,income2)
 exp_i = cbind.data.frame(income$ID,income_exp)
 colnames(exp_i) <-c("ID","MonthlyIncome")
-write.csv(expo_i,"C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/Case2PredictionsPOON_Salarytion.csv")
+write.csv(exp_i,"C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/Case2PredictionsPOON_Salary.csv")
 
 ```
 
