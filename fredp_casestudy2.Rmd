@@ -1,0 +1,283 @@
+---
+title: "MSDS6301_CaseStudy2"
+author: "Fred Poon"
+date: "12/4/2019"
+output: slidy_presentation
+---
+
+```{r Libraries, echo=FALSE}
+
+# install packages
+install.packages("readxl")
+install.packages("dplyr")
+install.packages("tidyverse")
+install.packages("psych")
+install.packages("class")
+install.packages("caret")
+install.packages("e1071")
+#install.packages("gmodels")
+
+# load libraries
+library(readxl)         ## this reads excel (xls, xlsx) files
+library(tidyverse)
+library(dplyr)          ## already included in tidyverse
+library(psych)          ## using this package to dummy.code categorical variables.
+library(class)
+library(caret)
+library(e1071)
+#library(gmodels)
+
+```
+
+```{r Data}
+
+#load employee management data sets
+#employees dataset
+data = read.csv('C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/CaseStudy2-data.csv', header = TRUE)
+
+#unknown columns.. not enough background information
+#StandardHours EmployeeNumber EmployeeCount Over18
+#will remove these columns from dataset
+data <- select(data, -StandardHours, -EmployeeNumber, -EmployeeCount, -Over18)
+
+
+#attrition test set
+attrition = read.csv('C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/CaseStudy2CompSet No Attrition.csv', header = TRUE)
+
+#income test set
+income = read_xlsx('C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/CaseStudy2CompSet No Salary.xlsx', col_names = TRUE)
+
+```
+
+### Information gathered from Excel column names.
+StandardHours = 80... does this imply bi-weekly payroll?
+EmployeeCount = 1... Not sure what this means..
+
+```{r Exploratory - Summary Statistics}
+
+#out of curiousity, some summary statistics for selected columns
+summary(data)
+
+```
+
+## Interesting statistics
+Here are some variables I'd like to hone in on.
+Age, Attrition, BusinessTravel, Department, DistanceFromHome, EducationField, Gender, JobRole, MaritalStatus, MonthlyIncome, NumCompaniesWorked, OverTime, PercentSalaryHike, StockOptionLevel, TotalWorkingYears, YearsAtCompany, YearsInCurrentRole, YearsSinceLastPromotion, YearswithCurrManager
+
+```{r Exploratory 2 - Attrition vs..}
+
+#here i wanted to compare the yes/no attrition with numerical values
+#I wanted to stay away from ratings because 1- I don't know whats 1 vs 4 and 2- I don't like the rating system due to forced or lazy answers...
+data %>% ggplot(aes(Attrition, Age)) + 
+  geom_boxplot() + 
+  ggtitle("Age vs Attrition")
+
+data %>% ggplot(aes(Attrition, DistanceFromHome)) + 
+  geom_boxplot() + 
+  ggtitle("DistanceFromHome vs Attrition")
+
+data %>% ggplot(aes(Attrition, MonthlyIncome)) + 
+  geom_boxplot() + 
+  ggtitle("MonthlyIncome vs Attrition")
+
+data %>% ggplot(aes(Attrition, NumCompaniesWorked)) + 
+  geom_boxplot() + 
+  ggtitle("NumCompaniesWorked vs Attrition")
+
+data %>% ggplot(aes(Attrition, PercentSalaryHike)) + 
+  geom_boxplot() + 
+  ggtitle("PercentSalaryHike vs Attrition")
+
+data %>% ggplot(aes(Attrition, StockOptionLevel)) + 
+  geom_boxplot() + 
+  ggtitle("StockOptionLevel vs Attrition")
+
+data %>% ggplot(aes(Attrition, TotalWorkingYears)) + 
+  geom_boxplot() + 
+  ggtitle("TotalWorkingYears vs Attrition")
+
+data %>% ggplot(aes(Attrition, YearsAtCompany)) + 
+  geom_boxplot() + 
+  ggtitle("YearsAtCompany vs Attrition")
+
+data %>% ggplot(aes(Attrition, YearsInCurrentRole)) + 
+  geom_boxplot() + 
+  ggtitle("YearsInCurrentRole vs Attrition")
+
+data %>% ggplot(aes(Attrition, YearsSinceLastPromotion)) + 
+  geom_boxplot() + 
+  ggtitle("YearsSinceLastPromotion vs Attrition")
+
+data %>% ggplot(aes(Attrition, YearsWithCurrManager)) + 
+  geom_boxplot() + 
+  ggtitle("YearsWithCurrManager vs Attrition")
+
+```
+
+From the boxplots, we can see relationships especially in the following categories:
+Age, MonthlyIncome, TotalWorkingYears, YearsAtCompany, YearsInCurrentRole,
+
+Other thoughts, Age: 
+- some outliers in Age which really just tell that older folks are either retiring or moving on.
+
+Other thoughts, YearsInCurrRole:
+- probably should leave this category out. "Yes's" should heavily skew to the right due to the relationship between Years and Turnover.
+
+### Categorical Variables
+BusinessTravel, Department, Education, EducationField, Gender, JobLevel, JobRole, MaritalStatus, OverTime, StockOptionLevel,
+
+### Rating Variables
+EnvironmentSatisfaction, JobInvolvement(?), JobSatisfaction, PerformanceRating, RelationshipSatisfaction, TrainingLastYear, WorkLifeBalance
+
+### Numerical Values
+Age, DistanceFromHome, MonthlyIncome, NumCompaniesWorked, PercentSalaryHike, TotalWorkingYears, TrainingTimeLastYear, YearsAtCompany, YearsInCurrentRole, YearsSinceLastPromotion, YearswithCurrManager
+
+```{r Exploratory on Categories}
+
+#knowing what I know above, I want to scatterplot significant relationships with categories using facet_wrap()
+
+
+data %>% ggplot() +
+  geom_point(aes(Age, MonthlyIncome, color = Attrition)) +
+  geom_smooth(aes(Age, MonthlyIncome, linetype = Attrition)) +
+  facet_wrap(~Attrition) +
+  ggtitle("Age vs Income by Attrition")
+#makes sense, large cluster of high income individuals under "No" Attrition. 
+
+data %>% ggplot() +
+  geom_point(aes(Gender, MonthlyIncome, color = Attrition)) +
+  geom_smooth(aes(Gender, MonthlyIncome, linetype = Attrition)) +
+  facet_wrap(~Attrition) +
+  ggtitle("Gender vs MonthlyIncome by Attrition")
+
+```
+
+```{r K-NN}
+
+#dummy.coding categories for better k-nn predictions
+BusinessTravel <- as.data.frame(dummy.code(data$BusinessTravel))
+Department <- as.data.frame(dummy.code(data$Department))
+EducationField <- as.data.frame(dummy.code(data$EducationField))
+EducationField <- rename(EducationField, HREd = `Human Resources`)
+Gender <- as.data.frame(dummy.code(data$Gender))
+JobRole <- as.data.frame(dummy.code(data$JobRole))
+JobRole <- rename(JobRole, HRJr = `Human Resources`)
+MaritalStatus <- as.data.frame(dummy.code(data$MaritalStatus))
+OverTime <- as.data.frame(dummy.code(data$OverTime))
+OverTime <- rename(OverTime, NoOverTime = No)
+OverTime <- rename(OverTime, YesOverTime = Yes)
+
+#combine dataset with dummy.code
+data <- cbind(data, BusinessTravel, Department, EducationField, Gender, JobRole, MaritalStatus, OverTime)
+#confirm structure of new data set
+str(data)
+
+#final dataset stored as data2
+data2 <- data %>% 
+  select(Attrition,Age,DailyRate,DistanceFromHome,Education,EnvironmentSatisfaction,HourlyRate,JobInvolvement,JobLevel,JobSatisfaction,MonthlyIncome,MonthlyRate,NumCompaniesWorked,PercentSalaryHike,PerformanceRating,RelationshipSatisfaction,StockOptionLevel,TotalWorkingYears,TrainingTimesLastYear,WorkLifeBalance,YearsAtCompany,YearsInCurrentRole,YearsSinceLastPromotion,YearsWithCurrManager,`Non-Travel`,Travel_Frequently,Travel_Rarely,`Research & Development`,Sales,HREd,`Life Sciences`,Marketing,Medical,Other,`Technical Degree`,Female,Male,`Healthcare Representative`,HRJr,`Laboratory Technician`,Manager,`Manufacturing Director`,`Research Director`,`Research Scientist`,`Sales Executive`,`Sales Representative`,Divorced,Married,Single,NoOverTime,YesOverTime)
+
+#K-NN model
+set.seed(6)
+splitPerc = .80
+
+trainIndices = sample(1:dim(data2)[1],round(splitPerc * dim(data2)[1]))
+train = data2[trainIndices,]
+test = data2[-trainIndices,]
+
+#view(train)
+#str(train)
+#view(test)
+
+classifications = knn(train[,c(2:51)],test[,c(2:51)],train$Attrition, prob = TRUE, k = 3)
+table <- table(classifications,test$Attrition)
+CM <- confusionMatrix(table)
+
+table
+CM
+
+## Sensitivity 88%
+## Specificity 14%
+
+```
+
+```{r}
+
+#let's try "normalizing the data"
+normalize <- function(x) {
+  return ((x-min(x)) / (max(x) - min(x))) 
+}
+
+data3 <- data2
+
+data3_n <- as.data.frame(lapply(data3[2:51],normalize))
+str(data3_n)
+
+data3_n2 <- cbind(Attrition = data3[,c(1)],data3_n)
+view(data3_n2)
+
+
+#K-NN on normalized  data
+trainIndices2 = sample(1:dim(data3_n2)[1],round(splitPerc * dim(data3_n2)[1]))
+train2 = data3_n2[trainIndices2,]
+test2 = data3_n2[-trainIndices2,]
+
+view(train2)
+view(test2)
+
+sum(is.na(train2))
+sum(is.na(test2))
+
+classifications2 = knn(train2[,c(2:51)],test2[,c(2:51)],train2$Attrition, prob = TRUE, k = 3)
+table2 <- table(classifications2,test2$Attrition)
+CM2 <- confusionMatrix(table)
+
+table2
+CM2
+
+
+## Sensitvity >80%
+## Specificity >10%
+
+#not sure why i was expecting different results
+
+```
+## Going for NaiveBayes Model
+
+```{r}
+
+#Going to try NaiveBayes
+trainIndices3 = sample(1:dim(data3_n2)[1],round(splitPerc * dim(data3_n2)[1]))
+train3 = data3_n2[trainIndices3,]
+test3 = data3_n2[-trainIndices3,]
+
+nBmodel = naiveBayes(Attrition ~ ., train3)
+table3 <- table(predict(nBmodel,test3),test3$Attrition)
+CM3 <- confusionMatrix(table3)
+
+CM3
+
+## Sensitivity >70%
+## Specificity >70%
+
+##export to 
+attrition_exp <- predict(nBmodel,attrition)
+exp = cbind.data.frame(attrition$ID,attrition_exp)
+colnames(exp) <- c("ID","Attrition")
+write.csv(exp,"C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/Case2PredictionsPOON_Attrition.csv")
+
+```
+
+```{r Monthly Income}
+
+
+
+```
+
+
+
+
+
+
+
+
+
