@@ -259,8 +259,27 @@ CM3
 ## Sensitivity >70%
 ## Specificity >70%
 
+BusinessTravel <- as.data.frame(dummy.code(attrition$BusinessTravel))
+Department <- as.data.frame(dummy.code(attrition$Department))
+EducationField <- as.data.frame(dummy.code(attrition$EducationField))
+EducationField <- rename(EducationField, HREd = `Human Resources`)
+Gender <- as.data.frame(dummy.code(attrition$Gender))
+JobRole <- as.data.frame(dummy.code(attrition$JobRole))
+JobRole <- rename(JobRole, HRJr = `Human Resources`)
+MaritalStatus <- as.data.frame(dummy.code(attrition$MaritalStatus))
+OverTime <- as.data.frame(dummy.code(attrition$OverTime))
+OverTime <- rename(OverTime, NoOverTime = No)
+OverTime <- rename(OverTime, YesOverTime = Yes)
+
+attrition <- cbind(attrition, BusinessTravel, Department, EducationField, Gender, JobRole, MaritalStatus, OverTime)
+
+attrition2 <- attrition %>% 
+  select(Age,DailyRate,DistanceFromHome,Education,EnvironmentSatisfaction,HourlyRate,JobInvolvement,JobLevel,JobSatisfaction,MonthlyIncome,MonthlyRate,NumCompaniesWorked,PercentSalaryHike,PerformanceRating,RelationshipSatisfaction,StockOptionLevel,TotalWorkingYears,TrainingTimesLastYear,WorkLifeBalance,YearsAtCompany,YearsInCurrentRole,YearsSinceLastPromotion,YearsWithCurrManager,`Non-Travel`,Travel_Frequently,Travel_Rarely,`Research & Development`,Sales,HREd,`Life Sciences`,Marketing,Medical,Other,`Technical Degree`,Female,Male,`Healthcare Representative`,HRJr,`Laboratory Technician`,Manager,`Manufacturing Director`,`Research Director`,`Research Scientist`,`Sales Executive`,`Sales Representative`,Divorced,Married,Single,NoOverTime,YesOverTime)
+
+view(attrition2)
+
 ##export to 
-attrition_exp <- predict(nBmodel,attrition)
+attrition_exp <- predict(nBmodel,attrition2)
 exp = cbind.data.frame(attrition$ID,attrition_exp)
 colnames(exp) <- c("ID","Attrition")
 write.csv(exp,"C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/Case2PredictionsPOON_Attrition.csv")
@@ -269,7 +288,13 @@ write.csv(exp,"C:/Users/poonf/OneDrive - Southern Methodist University/6306 doin
 
 ```{r Monthly Income}
 
+#I'm going to use the same dataset from training for Attrition to predict MonthlyIncome, instead of NaiveBayes or KNN I'm going to use linear regression
 
+lmodel <- lm(MonthlyIncome ~ ., data3)
+income_exp <- predict(lmodel,income)
+exp_i = cbind.data.frame(income$ID,income_exp)
+colnames(exp_i) <-c("ID","MonthlyIncome")
+write.csv(expo_i,"C:/Users/poonf/OneDrive - Southern Methodist University/6306 doing data science/project 2/Case2PredictionsPOON_Salarytion.csv")
 
 ```
 
