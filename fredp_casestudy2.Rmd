@@ -8,12 +8,12 @@ output: slidy_presentation
 ```{r Libraries, echo=FALSE, results='hide'}
 
 # install packages
-install.packages("readxl")
-install.packages("tidyverse")
-install.packages("psych")
-install.packages("class")
-install.packages("caret")
-install.packages("e1071")
+#install.packages("readxl")
+#install.packages("tidyverse")
+#install.packages("psych")
+#install.packages("class")
+#install.packages("caret")
+#install.packages("e1071")
 
 # load packages
 library(readxl)         ## this reads excel (xls, xlsx) files
@@ -155,6 +155,12 @@ data %>% ggplot() +
   geom_col(aes(WorkLifeBalance, MonthlyIncome)) +
   facet_wrap(~Gender) +
   ggtitle("WorkLifeBalance vs MonthlyIncome by Gender")
+
+data %>% ggplot() +
+  geom_point(aes(YearsAtCompany, MonthlyIncome, color = JobRole)) +
+  geom_smooth(aes(YearsAtCompany, MonthlyIncome, linetype = JobRole)) +
+  facet_wrap(~JobRole) +
+  ggtitle("YearsAtCompany vs MonthlyIncome by JobRole")
 
 ```
 
